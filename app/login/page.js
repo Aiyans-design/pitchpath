@@ -29,10 +29,9 @@ export default function LoginPage() {
       return;
     }
 
-    // New signup with no existing profile -> onboarding.
-    // Existing user -> also send to onboarding for now; it will
-    // redirect onward once a profile already exists.
-    router.push('/onboarding');
+    // Always go home — the home page checks whether a profile already
+    // exists and sends new users to onboarding automatically.
+    router.push('/');
   }
 
   return (
