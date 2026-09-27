@@ -1,25 +1,3 @@
 import { NextResponse } from 'next/server';
 import { askGemini } from '../../../lib/gemini';
-
-export async function POST(request) {
-  const { profile } = await request.json();
-  const prompt = `You design safe, age-appropriate gym sessions for a teenage football player. Player: age ${profile.age}, position ${profile.position}, goals: "${profile.goals}". Avoid maximal lifting or unsafe loads for a teenager. Respond with ONLY valid JSON, no markdown: {"summary": "2 sentences on what this session works toward and why", "exercises": [{"name": "...", "sets": 3, "reps": "10-12", "rest_seconds": 60, "purpose": "short reason"}]} with 5-6 exercises.`;
-
-  try {
-    const text = await askGemini(prompt);
-    const clean = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
-    return NextResponse.json(parsed);
-  } catch (err) {
-    return NextResponse.json({
-      summary: 'A general football-conditioning session focused on core stability and lower-body strength.',
-      exercises: [
-        { name: 'Bodyweight squats', sets: 3, reps: '12', rest_seconds: 60, purpose: 'Leg strength' },
-        { name: 'Plank', sets: 3, reps: '30-45s', rest_seconds: 45, purpose: 'Core stability' },
-        { name: 'Lunges', sets: 3, reps: '10 each leg', rest_seconds: 60, purpose: 'Single-leg strength' },
-        { name: 'Glute bridges', sets: 3, reps: '15', rest_seconds: 45, purpose: 'Posterior chain' },
-        { name: 'Mountain climbers', sets: 3, reps: '20', rest_seconds: 45, purpose: 'Conditioning' },
-      ],
-    });
-  }
-}
+export async function POST(request){const {profile,events,injuries}=await request.json();const prompt=`You design age-appropriate academy-style strength and conditioning for a teenage football player. Never prescribe maximal loads, unsafe training, supplements or restrictive dieting. Player: ${JSON.stringify(profile)}. Upcoming schedule: ${JSON.stringify(events||[])}. Active injuries/restrictions: ${JSON.stringify(injuries||[])}. Build one session only if it fits the recovery picture. Prioritize football-relevant qualities: acceleration support, unilateral strength, trunk control, posterior chain, robustness and power technique. Avoid a generic bodybuilding split. Return ONLY JSON: {"summary":"2 sentences","exercises":[{"name":"...","sets":3,"reps":"6-10","rest_seconds":90,"purpose":"..."}]}.`;try{const text=await askGemini(prompt);return NextResponse.json(JSON.parse(text.replace(/```json|```/g,'').trim()))}catch{return NextResponse.json({summary:'A controlled football-strength session focused on movement quality and robustness.',exercises:[{name:'Split squat',sets:3,reps:'8 each leg',rest_seconds:75,purpose:'Unilateral leg strength'},{name:'Single-leg hip hinge',sets:3,reps:'8 each leg',rest_seconds:60,purpose:'Posterior-chain control'},{name:'Push-up',sets:3,reps:'8-12',rest_seconds:60,purpose:'Upper-body strength'},{name:'Side plank',sets:3,reps:'30s each side',rest_seconds:45,purpose:'Trunk stability'},{name:'Calf raise',sets:3,reps:'12-15',rest_seconds:45,purpose:'Lower-leg robustness'}]})}}
