@@ -1,67 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect,useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-
-export default function AiPage() {
-  const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Hey! I know your profile, calendar, water, sleep and injuries. Ask me anything.' },
-  ]);
-  const [input, setInput] = useState('');
-  const [context, setContext] = useState(null);
-  const [sending, setSending] = useState(false);
-
-  useEffect(() => {
-    async function loadContext() {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user.id;
-      const [{ data: profile }, { data: events }, { data: injuries }] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', uid).single(),
-        supabase.from('calendar_events').select('*').eq('user_id', uid).order('starts_at').limit(10),
-        supabase.from('injuries').select('*').eq('user_id', uid).eq('status', 'active'),
-      ]);
-      setContext({ profile, upcomingEvents: events, activeInjuries: injuries });
-    }
-    loadContext();
-  }, []);
-
-  async function send() {
-    if (!input.trim()) return;
-    const userMsg = input;
-    setMessages((m) => [...m, { role: 'user', text: userMsg }]);
-    setInput('');
-    setSending(true);
-    const res = await fetch('/api/assistant', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userMsg, context }),
-    });
-    const { reply } = await res.json();
-    setMessages((m) => [...m, { role: 'ai', text: reply }]);
-    setSending(false);
-  }
-
-  return (
-    <main style={{ maxWidth: 480, margin: '40px auto', padding: 20 }}>
-      <div className="card">
-        <h2>Assistant</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12, minHeight: 200 }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{
-              maxWidth: '82%', padding: '11px 15px', borderRadius: 16, fontSize: 14,
-              alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-              background: m.role === 'user' ? 'var(--pine)' : 'var(--cream)',
-              color: m.role === 'user' ? '#fff' : 'var(--ink)',
-            }}>
-              {m.text}
-            </div>
-          ))}
-          {sending && <div style={{ fontSize: 13, color: 'var(--ink-soft)', fontStyle: 'italic' }}>Thinking…</div>}
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
-            placeholder="Ask anything..." style={{ flex: 1, padding: '12px 16px', borderRadius: 100, border: '1.5px solid var(--stone)', fontFamily: 'inherit' }} />
-          <button className="btn-primary" onClick={send}>→</button>
-        </div>
-      </div>
-    </main>
-  );
-}
+export default function AiPage(){const [messages,setMessages]=useState([{role:'ai',text:'Pitchpath is ready. I can help you understand your week, training, recovery and football — and I can make approved changes to your plan.'}]),[input,setInput]=useState(''),[context,setContext]=useState(null),[sending,setSending]=useState(false);
+ useEffect(()=>{(async()=>{const {data:u}=await supabase.auth.getUser();if(!u.user)return;const uid=u.user.id;const [{data:profile},{data:events},{data:injuries},{data:logs}]=await Promise.all([supabase.from('profiles').select('*').eq('id',uid).single(),supabase.from('calendar_events').select('*').eq('user_id',uid).order('starts_at').limit(20),supabase.from('injuries').select('*').eq('user_id',uid).eq('status','active'),supabase.from('nutrition_logs').select('*').eq('user_id',uid).order('created_at',{ascending:false}).limit(10)]);setContext({uid,profile,upcomingEvents:events,activeInjuries:injuries,recentNutrition:logs})})()},[]);
+ async function apply(action){if(!action||!context?.uid)return null;if(action.type==='update_weaknesses'){await supabase.from('profiles').update({weaknesses:action.weaknesses}).eq('id',context.uid);return 'Weaknesses updated.'}if(action.type==='add_calendar_event'){const now=new Date();const target=new Date(now);const delta=(Number(action.weekday)-target.getDay()+7)%7;target.setDate(target.getDate()+delta+(delta===0&&target.getHours()>18?7:0));const [h,m]=(action.start_time||'17:00').split(':').map(Number);target.setHours(h,m,0,0);const end=new Date(target.getTime()+(Number(action.duration_minutes)||60)*60000);await supabase.from('calendar_events').insert({user_id:context.uid,type:action.event_type||'individual',title:action.title||'Training',starts_at:target.toISOString(),ends_at:end.toISOString(),notes:'[AI ASSISTANT] Added at player request'});return `Added ${action.title||'training'} to your calendar.`}if(action.type==='log_note')return 'Noted.';return null}
+ async function send(){if(!input.trim()||sending)return;const msg=input.trim();setInput('');setMessages(m=>[...m,{role:'user',text:msg}]);setSending(true);try{const res=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,context})});const out=await res.json();let suffix='';if(out.action){const result=await apply(out.action);suffix=result?` ${result}`:''}setMessages(m=>[...m,{role:'ai',text:(out.reply||'Done.')+suffix}])}finally{setSending(false)}}
+ return <main className="app-shell"><div style={{marginBottom:22}}><span className="pill">Pitchpath AI</span><h1 className="page-title" style={{marginTop:10}}>Your performance brain.</h1><p className="page-subtitle">Ask about football, school balance, training, recovery or how to change your plan.</p></div><section className="card" style={{minHeight:520,display:'flex',flexDirection:'column'}}><div style={{flex:1,display:'flex',flexDirection:'column',gap:12}}>{messages.map((m,i)=><div key={i} className="premium-tile" style={{alignSelf:m.role==='user'?'flex-end':'flex-start',maxWidth:'82%',background:m.role==='user'?'var(--pine)':'rgba(255,252,249,.7)',color:m.role==='user'?'#fff':'var(--ink)'}}>{m.text}</div>)}{sending&&<div className="muted" style={{animation:'pulse-soft 1.2s infinite'}}>Thinking…</div>}</div><div style={{display:'flex',gap:9,marginTop:18}}><input className="input-field" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="e.g. I want gym every Monday after school"/><button className="btn-primary" onClick={send} disabled={sending}>Send</button></div></section></main>}
