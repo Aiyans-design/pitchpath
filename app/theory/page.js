@@ -1,89 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect,useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-
-export default function TheoryPage() {
-  const [userId, setUserId] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [current, setCurrent] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [streak, setStreak] = useState(0);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user.id));
-    loadQuestions();
-  }, []);
-
-  async function loadQuestions() {
-    const { data } = await supabase.from('theory_questions').select('*').limit(5);
-    if (data && data.length > 0) setQuestions(data);
-  }
-
-  async function generateMore() {
-    setLoading(true);
-    const res = await fetch('/api/generate-theory-questions', { method: 'POST' });
-    const { questions: newQs } = await res.json();
-    if (newQs.length > 0) {
-      const { data: inserted } = await supabase.from('theory_questions').insert(newQs).select();
-      setQuestions(inserted);
-      setCurrent(0);
-    }
-    setLoading(false);
-  }
-
-  async function answer(index) {
-    setSelected(index);
-    const correct = index === questions[current].correct_index;
-    if (correct) setStreak((s) => s + 1); else setStreak(0);
-    await supabase.from('theory_progress').insert({ user_id: userId, question_id: questions[current].id, answered_correctly: correct });
-  }
-
-  function next() {
-    setSelected(null);
-    if (current + 1 < questions.length) setCurrent(current + 1);
-    else generateMore();
-  }
-
-  if (questions.length === 0) {
-    return (
-      <main style={{ maxWidth: 480, margin: '40px auto', padding: 20 }}>
-        <div className="card">
-          <h2>Football Theory</h2>
-          <p style={{ color: 'var(--ink-soft)', fontSize: 14, marginBottom: 12 }}>No questions yet — let's generate your first set.</p>
-          <button className="btn-primary" onClick={generateMore} disabled={loading}>{loading ? 'Generating…' : 'Start'}</button>
-        </div>
-      </main>
-    );
-  }
-
-  const q = questions[current];
-  return (
-    <main style={{ maxWidth: 480, margin: '40px auto', padding: 20 }}>
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--pine)', textTransform: 'uppercase' }}>{q.topic}</span>
-          <span style={{ fontSize: 13 }}>🔥 {streak}</span>
-        </div>
-        <p style={{ fontWeight: 600, marginBottom: 14 }}>{q.question}</p>
-        {q.options.map((opt, i) => (
-          <button key={i} onClick={() => selected === null && answer(i)}
-            style={{
-              display: 'block', width: '100%', textAlign: 'left', padding: '12px 14px', marginBottom: 8, borderRadius: 14,
-              border: '1.5px solid var(--stone)',
-              background: selected === null ? 'var(--card)' : i === q.correct_index ? 'var(--sage)' : i === selected ? '#e8b3ae' : 'var(--card)',
-              color: selected !== null && i === q.correct_index ? '#fff' : 'var(--ink)',
-            }}>
-            {opt}
-          </button>
-        ))}
-        {selected !== null && (
-          <>
-            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 8 }}>{q.explanation}</p>
-            <button className="btn-primary" style={{ marginTop: 12 }} onClick={next}>Next question</button>
-          </>
-        )}
-      </div>
-    </main>
-  );
-}
+export default function TheoryPage(){const [uid,setUid]=useState(null),[profile,setProfile]=useState(null),[questions,setQuestions]=useState([]),[current,setCurrent]=useState(0),[selected,setSelected]=useState(null),[streak,setStreak]=useState(0),[loading,setLoading]=useState(false);
+ useEffect(()=>{(async()=>{const {data:u}=await supabase.auth.getUser();if(!u.user)return;setUid(u.user.id);const {data:p}=await supabase.from('profiles').select('*').eq('id',u.user.id).single();setProfile(p);const {data}=await supabase.from('theory_questions').select('*').order('difficulty',{ascending:false}).limit(5);if(data?.length)setQuestions(data)})()},[]);
+ async function generateMore(){setLoading(true);const res=await fetch('/api/generate-theory-questions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile})});const out=await res.json();if(out.questions?.length){const {data}=await supabase.from('theory_questions').insert(out.questions).select();setQuestions(data||out.questions);setCurrent(0)}setLoading(false)}
+ async function answer(i){setSelected(i);const correct=i===questions[current].correct_index;if(correct)setStreak(s=>s+1);else setStreak(0);await supabase.from('theory_progress').insert({user_id:uid,question_id:questions[current].id,answered_correctly:correct})}
+ const q=questions[current];if(!q)return <main className="app-shell"><section className="card"><span className="pill">Football IQ</span><h1 className="page-title" style={{marginTop:10}}>Train the mind.</h1><p className="page-subtitle">Scenario-based tactical problems built for serious players.</p><button className="btn-primary" style={{marginTop:18}} onClick={generateMore} disabled={loading}>{loading?'Building lesson…':'Start advanced lesson'}</button></section></main>;
+ return <main className="app-shell"><div style={{marginBottom:22}}><span className="pill">Football IQ · Level {q.difficulty}/5</span><h1 className="page-title" style={{marginTop:10}}>See the pitch earlier.</h1><p className="page-subtitle">Hard situations. Better scanning. Better decisions.</p></div><section className="card"><div style={{display:'flex',justifyContent:'space-between',gap:12}}><span className="pill">{q.topic}</span><strong>🔥 {streak}</strong></div><h2 style={{fontSize:28,lineHeight:1.15,marginTop:20}}>{q.question}</h2><div style={{marginTop:20}}>{q.options.map((opt,i)=><button key={i} onClick={()=>selected===null&&answer(i)} className="premium-tile" style={{display:'block',width:'100%',textAlign:'left',marginBottom:9,border:i===q.correct_index&&selected!==null?'2px solid var(--pine)':'1px solid rgba(255,255,255,.7)',background:selected===null?'rgba(255,252,249,.62)':i===q.correct_index?'rgba(131,151,136,.2)':i===selected?'rgba(142,85,77,.16)':'rgba(255,252,249,.5)'}}><strong>{String.fromCharCode(65+i)}</strong> <span style={{marginLeft:8}}>{opt}</span></button>)}</div>{selected!==null&&<div className="premium-tile" style={{marginTop:14}}><span className="pill">Why</span><p style={{marginBottom:0}}>{q.explanation}</p><button className="btn-primary" style={{marginTop:10}} onClick={()=>{setSelected(null);if(current+1<questions.length)setCurrent(current+1);else generateMore()}}>Next</button></div>}</section></main>}
