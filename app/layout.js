@@ -1,4 +1,5 @@
 import './globals.css';
+import Nav from '../components/Nav';
 
 export const metadata = {
   title: 'Pitchpath',
@@ -15,7 +16,10 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body style={{ paddingBottom: 70 }}>
+        {children}
+        <Nav />
+      </body>
     </html>
   );
 }
