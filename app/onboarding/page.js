@@ -10,6 +10,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState('form'); // 'form' | 'loading' | 'summary'
   const [summary, setSummary] = useState('');
   const [error, setError] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
 
   const [form, setForm] = useState({
     name: '', age: '', position: '', height_cm: '', weight_kg: '',
@@ -45,7 +46,20 @@ export default function OnboardingPage() {
       });
       const { summary: aiSummary } = await res.json();
 
-      // 2. Save the profile + summary to Supabase
+      // 2. Upload the photo (if one was chosen) to Supabase Storage
+      let photoUrl = null;
+      if (photoFile) {
+        const filePath = `${userId}/${Date.now()}-${photoFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, photoFile);
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          photoUrl = urlData.publicUrl;
+        }
+      }
+
+      // 3. Save the profile + summary + photo to Supabase
       const { error: dbError } = await supabase.from('profiles').upsert({
         id: userId,
         name: form.name,
@@ -57,6 +71,7 @@ export default function OnboardingPage() {
         league: form.league,
         goals: form.goals,
         summary: aiSummary,
+        photo_url: photoUrl,
       });
 
       if (dbError) throw dbError;
@@ -95,6 +110,9 @@ export default function OnboardingPage() {
             </Field>
             <Field label="What do you want to work on?">
               <textarea rows={3} value={form.goals} onChange={(e) => update('goals', e.target.value)} style={{ ...inputStyle, resize: 'vertical' }} />
+            </Field>
+            <Field label="Upper-body photo (optional)">
+              <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files[0])} />
             </Field>
 
             {error && <p style={{ color: '#b3423a', fontSize: 13, marginBottom: 12 }}>{error}</p>}
