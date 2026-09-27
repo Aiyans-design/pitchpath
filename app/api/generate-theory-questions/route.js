@@ -1,17 +1,3 @@
 import { NextResponse } from 'next/server';
 import { askGemini } from '../../../lib/gemini';
-
-export async function POST() {
-  const topics = ['scanning', 'pressing', 'positional play', 'transitions', 'creating space'];
-  const topic = topics[Math.floor(Math.random() * topics.length)];
-  const prompt = `Write 5 challenging multiple-choice football-IQ questions about "${topic}" for a serious teenage academy player — not trivia, real tactical decision-making ("what would you do?" situational questions). Respond with ONLY valid JSON array, no markdown: [{"topic": "${topic}", "difficulty": 1-5, "question": "...", "options": ["a","b","c","d"], "correct_index": 0, "explanation": "..."}]`;
-
-  try {
-    const text = await askGemini(prompt);
-    const clean = text.replace(/```json|```/g, '').trim();
-    const questions = JSON.parse(clean);
-    return NextResponse.json({ questions });
-  } catch (err) {
-    return NextResponse.json({ questions: [] });
-  }
-}
+export async function POST(request){const {profile}=await request.json().catch(()=>({}));const topics=['scanning and information gathering','pressing triggers','third-player combinations','positional play','rest defence','transition moments','creating and attacking space','defending the half-space','tempo manipulation','receiving under pressure'];const topic=topics[Math.floor(Math.random()*topics.length)];const prompt=`Create 5 difficult football-IQ lessons for a serious teenage player. This is NOT trivia. Use realistic match situations and require the player to identify the best decision, movement, scanning cue or tactical principle. Topic: ${topic}. Player profile: ${JSON.stringify(profile||{})}. Target difficulty 4-5/5. Include plausible distractors that a good but inexperienced player might choose. Avoid relying on a famous player or team. Return ONLY JSON array: [{"topic":"...","difficulty":5,"question":"...","options":["...","...","...","..."],"correct_index":0,"explanation":"Detailed but concise tactical explanation."}]`;try{const text=await askGemini(prompt);return NextResponse.json({questions:JSON.parse(text.replace(/```json|```/g,'').trim())})}catch{return NextResponse.json({questions:[]})}}
