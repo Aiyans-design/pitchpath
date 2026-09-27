@@ -1,20 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function LoginPage(){
   const router=useRouter();
-  const searchParams=useSearchParams();
-  const requestedMode=searchParams.get('mode')==='login'?'login':'signup';
-  const [mode,setMode]=useState(requestedMode);
+  const [mode,setMode]=useState('signup');
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState('');
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [loading,setLoading]=useState(false);
 
-  useEffect(()=>{setMode(requestedMode);setError('');setNotice('')},[requestedMode]);
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    setMode(params.get('mode')==='login'?'login':'signup');
+  },[]);
 
   function switchMode(next){
     setError('');setNotice('');setMode(next);
@@ -58,7 +59,7 @@ export default function LoginPage(){
         {notice&&<div style={{marginTop:14,padding:13,borderRadius:16,background:'rgba(131,151,136,.12)',color:'var(--pine)',fontSize:13}}>{notice}</div>}
         <button type="submit" className="btn-primary" style={{width:'100%',marginTop:16}} disabled={loading}>{loading?'Connecting…':mode==='signup'?'Create account':'Log in'}</button>
       </form>
-      <a href={mode==='signup'?'/login?mode=login':'/login'} style={{display:'block',marginTop:16,width:'100%',textAlign:'center',color:'var(--pine)',fontWeight:800,textDecoration:'none',cursor:'pointer'}}>{mode==='signup'?'Already have an account? Log in':'Need an account? Sign up'}</a>
+      <button type="button" onClick={()=>switchMode(mode==='signup'?'login':'signup')} style={{display:'block',marginTop:16,width:'100%',textAlign:'center',color:'var(--pine)',fontWeight:800,textDecoration:'none',cursor:'pointer',border:0,background:'transparent'}}>{mode==='signup'?'Already have an account? Log in':'Need an account? Sign up'}</button>
     </div>
   </main>;
 }
