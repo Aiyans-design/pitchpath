@@ -7,7 +7,7 @@ export default function Home() {
   const router = useRouter();
   const [status, setStatus] = useState('checking'); // checking | ready
   const [profile, setProfile] = useState(null);
-  const [photoFile, setPhotoFile] = useState(null);
+
 
   useEffect(() => {
     async function check() {
