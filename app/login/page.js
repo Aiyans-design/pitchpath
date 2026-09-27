@@ -1,16 +1,25 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function LoginPage(){
   const router=useRouter();
-  const [mode,setMode]=useState('signup');
+  const searchParams=useSearchParams();
+  const requestedMode=searchParams.get('mode')==='login'?'login':'signup';
+  const [mode,setMode]=useState(requestedMode);
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState('');
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [loading,setLoading]=useState(false);
+
+  useEffect(()=>{setMode(requestedMode);setError('');setNotice('')},[requestedMode]);
+
+  function switchMode(next){
+    setError('');setNotice('');setMode(next);
+    router.replace(next==='login'?'/login?mode=login':'/login');
+  }
 
   async function handleSubmit(e){
     e.preventDefault();
@@ -22,7 +31,8 @@ export default function LoginPage(){
         if(authError)throw authError;
         if(data.session){router.replace('/');return;}
         setNotice('Account created. Check your email to confirm the account, then log in here.');
-        setMode('login');
+        switchMode('login');
+        setNotice('Account created. Check your email to confirm the account, then log in here.');
         return;
       }
       const {data,error:authError}=await supabase.auth.signInWithPassword({email:cleanEmail,password});
@@ -48,7 +58,7 @@ export default function LoginPage(){
         {notice&&<div style={{marginTop:14,padding:13,borderRadius:16,background:'rgba(131,151,136,.12)',color:'var(--pine)',fontSize:13}}>{notice}</div>}
         <button type="submit" className="btn-primary" style={{width:'100%',marginTop:16}} disabled={loading}>{loading?'Connecting…':mode==='signup'?'Create account':'Log in'}</button>
       </form>
-      <button type="button" onClick={()=>{setMode(m=>m==='signup'?'login':'signup');setError('');setNotice('')}} style={{marginTop:16,width:'100%',border:0,background:'transparent',color:'var(--pine)',fontWeight:800,cursor:'pointer'}}> {mode==='signup'?'Already have an account? Log in':'Need an account? Sign up'}</button>
+      <a href={mode==='signup'?'/login?mode=login':'/login'} style={{display:'block',marginTop:16,width:'100%',textAlign:'center',color:'var(--pine)',fontWeight:800,textDecoration:'none',cursor:'pointer'}}>{mode==='signup'?'Already have an account? Log in':'Need an account? Sign up'}</a>
     </div>
   </main>;
 }
