@@ -1,70 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect,useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-
-export default function InjuryPage() {
-  const [userId, setUserId] = useState(null);
-  const [injuries, setInjuries] = useState([]);
-  const [bodyArea, setBodyArea] = useState('');
-  const [symptoms, setSymptoms] = useState('');
-  const [severity, setSeverity] = useState(3);
-  const [notes, setNotes] = useState('');
-
-  async function load(uid) {
-    const { data } = await supabase.from('injuries').select('*').eq('user_id', uid).order('created_at', { ascending: false });
-    setInjuries(data || []);
-  }
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { setUserId(data.user.id); load(data.user.id); });
-  }, []);
-
-  async function addInjury() {
-    if (!bodyArea) return;
-    await supabase.from('injuries').insert({
-      user_id: userId, body_area: bodyArea, symptoms, severity, notes, occurred_at: new Date().toISOString().slice(0, 10),
-    });
-    setBodyArea(''); setSymptoms(''); setNotes(''); setSeverity(3);
-    load(userId);
-  }
-
-  const seriousSeverity = severity >= 4;
-
-  return (
-    <main style={{ maxWidth: 480, margin: '40px auto', padding: 20 }}>
-      <div className="card">
-        <h2>Log an injury or illness</h2>
-        <input placeholder="Body area (e.g. left ankle)" value={bodyArea} onChange={(e) => setBodyArea(e.target.value)} style={inputStyle} />
-        <textarea rows={2} placeholder="Symptoms" value={symptoms} onChange={(e) => setSymptoms(e.target.value)} style={{ ...inputStyle, marginTop: 8, resize: 'vertical' }} />
-        <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--pine)', display: 'block', marginTop: 8 }}>Severity (1-5)</label>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button key={n} onClick={() => setSeverity(n)} style={{ width: 34, height: 34, borderRadius: '50%', background: severity === n ? 'var(--pine)' : 'var(--card)', color: severity === n ? '#fff' : 'var(--ink)', border: '1px solid var(--stone)' }}>{n}</button>
-          ))}
-        </div>
-        <textarea rows={2} placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ ...inputStyle, marginTop: 8, resize: 'vertical' }} />
-        {seriousSeverity && (
-          <p style={{ fontSize: 13, color: '#b3423a', marginTop: 8 }}>
-            This sounds serious — please involve a parent/guardian and a healthcare professional. This app can't diagnose injuries.
-          </p>
-        )}
-        <button className="btn-primary" style={{ marginTop: 10 }} onClick={addInjury}>Log it</button>
-      </div>
-
-      <div className="card">
-        <h2>History</h2>
-        {injuries.length === 0 && <p style={{ color: 'var(--ink-soft)', fontSize: 14 }}>Nothing logged.</p>}
-        {injuries.map((i) => (
-          <div key={i.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(189,187,182,0.4)', fontSize: 14 }}>
-            <strong>{i.body_area}</strong> — severity {i.severity}/5 — {i.status}
-          </div>
-        ))}
-      </div>
-    </main>
-  );
-}
-
-const inputStyle = {
-  width: '100%', padding: '10px 12px', borderRadius: 12, border: '1.5px solid var(--stone)',
-  background: 'var(--card)', fontSize: 14, fontFamily: 'inherit', color: 'var(--ink)',
-};
+export default function InjuryPage(){const [uid,setUid]=useState(null),[injuries,setInjuries]=useState([]),[body,setBody]=useState(''),[symptoms,setSymptoms]=useState(''),[severity,setSeverity]=useState(2),[notes,setNotes]=useState(''),[updating,setUpdating]=useState(false),[message,setMessage]=useState('');
+ async function load(id){const {data}=await supabase.from('injuries').select('*').eq('user_id',id).order('created_at',{ascending:false});setInjuries(data||[])}
+ useEffect(()=>{supabase.auth.getUser().then(({data})=>{if(data.user){setUid(data.user.id);load(data.user.id)}})},[]);
+ async function log(){if(!body)return;await supabase.from('injuries').insert({user_id:uid,body_area:body,symptoms,severity,notes,occurred_at:new Date().toISOString().slice(0,10)});setBody('');setSymptoms('');setNotes('');setSeverity(2);await load(uid);setUpdating(true);try{const [{data:profile},{data:events},{data:active}]=await Promise.all([supabase.from('profiles').select('*').eq('id',uid).single(),supabase.from('calendar_events').select('*').eq('user_id',uid).gte('starts_at',new Date().toISOString()).order('starts_at').limit(30),supabase.from('injuries').select('*').eq('user_id',uid).eq('status','active')]);const res=await fetch('/api/plan-training',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile,events,injuries:active})});const out=await res.json();if(out.sessions?.length){await supabase.from('calendar_events').insert(out.sessions.map(s=>({user_id:uid,type:s.type,title:`${s.title} · Recovery adjusted`,starts_at:new Date(`${s.day}T${s.start_time}`).toISOString(),ends_at:s.end_time?new Date(`${s.day}T${s.end_time}`).toISOString():null,notes:`[AI RECOVERY] ${s.description}`})))}setMessage('Your future training plan was rechecked around the new recovery status.')}finally{setUpdating(false)}}
+ async function close(id){await supabase.from('injuries').update({status:'resolved'}).eq('id',id);load(uid)}
+ return <main className="app-shell"><div style={{marginBottom:22}}><span className="pill">Recovery</span><h1 className="page-title" style={{marginTop:10}}>Protect the player.</h1><p className="page-subtitle">Log pain, illness or a restriction so future training can be adjusted. This app does not diagnose injuries.</p></div><section className="card"><span className="pill">New status</span><h2 style={{fontSize:28,marginTop:9}}>What changed?</h2><input className="input-field" placeholder="Body area or illness" value={body} onChange={e=>setBody(e.target.value)} style={{marginTop:14}}/><textarea className="input-field" rows={3} placeholder="Symptoms / what you noticed" value={symptoms} onChange={e=>setSymptoms(e.target.value)} style={{marginTop:9,resize:'vertical'}}/><div style={{marginTop:14}}><div className="muted" style={{fontSize:13,fontWeight:700}}>How limiting is it? {severity}/5</div><div style={{display:'flex',gap:7,marginTop:8}}>{[1,2,3,4,5].map(n=><button key={n} onClick={()=>setSeverity(n)} style={{width:42,height:42,borderRadius:'50%',border:0,background:n===severity?'var(--pine)':'rgba(131,151,136,.1)',color:n===severity?'#fff':'var(--ink)',fontWeight:800}}>{n}</button>)}</div></div><textarea className="input-field" rows={2} placeholder="Anything else?" value={notes} onChange={e=>setNotes(e.target.value)} style={{marginTop:12,resize:'vertical'}}/><p className="muted" style={{fontSize:13}}>For significant symptoms, tell a parent/guardian and seek appropriate medical care.</p><button className="btn-primary" onClick={log} disabled={updating}>{updating?'Rebalancing your plan…':'Log & adapt my plan'}</button>{message&&<p className="muted">{message}</p>}</section><section className="card"><span className="pill">History</span><h2 style={{fontSize:28,marginTop:9}}>Recovery timeline</h2>{injuries.length===0?<p className="muted">Nothing logged.</p>:injuries.map(i=><div className="premium-tile" key={i.id} style={{marginTop:10}}><div style={{display:'flex',justifyContent:'space-between',gap:10}}><strong>{i.body_area}</strong><span className="pill">{i.status}</span></div><div className="muted" style={{marginTop:5}}>Severity {i.severity}/5 · {i.occurred_at}</div><div style={{marginTop:5}}>{i.symptoms}</div>{i.status==='active'&&<button className="btn-secondary" style={{marginTop:10}} onClick={()=>close(i.id)}>Mark resolved</button>}</div>)}</section></main>}
