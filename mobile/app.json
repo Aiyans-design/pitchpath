@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Pitchpath",
+    "slug": "pitchpath",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "pitchpath",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router", "expo-image-picker", "expo-secure-store"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pitchpath.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Pitchpath uses the camera for optional player and schedule photos.",
+        "NSPhotoLibraryUsageDescription": "Pitchpath lets you choose photos for your profile and schedule imports."
+      }
+    },
+    "android": {
+      "package": "com.pitchpath.app",
+      "adaptiveIcon": { "backgroundColor": "#F5E4D7" }
+    },
+    "extra": {
+      "router": { "origin": false }
+    }
+  }
+}
