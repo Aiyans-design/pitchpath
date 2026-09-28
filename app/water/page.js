@@ -4,10 +4,13 @@ import { supabase } from '../../lib/supabaseClient';
 import { localDateKey,localDateTime } from '../../lib/dateUtils';
 
 function dayLoad(events){
- const match=events.filter(e=>e.type==='match').length;
- const training=events.filter(e=>['training','gym','individual'].includes(e.type)).length;
- const school=events.filter(e=>e.type==='school').length;
- const total=match*950+training*550;
+ const rows=events||[];
+ const isMatch=e=>e.type==='match'||/\b(match|game|fixture|cup|slutspel)\b/i.test(`${e.title||''} ${e.notes||''}`);
+ const isTraining=e=>['training','gym','individual'].includes(e.type)||/\b(training|träning|gym|individual|session|pass)\b/i.test(`${e.title||''} ${e.notes||''}`);
+ const match=rows.filter(isMatch).length;
+ const training=rows.filter(e=>!isMatch(e)&&isTraining(e)).length;
+ const school=rows.filter(e=>e.type==='school'||/\b(school|skola)\b/i.test(`${e.title||''}`)).length;
+ const total=Math.min(1800,match*1000+training*550);
  return {match,training,school,total,label:match?'match':training?'training':'rest'};
 }
 
@@ -17,31 +20,19 @@ export default function WaterPage(){
  async function load(){
   const {data:{user}}=await supabase.auth.getUser();
   if(!user){setMessage('Please log in to load your hydration plan.');return;}
-  const today=localDateKey(); const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);const tomorrowKey=localDateKey(tomorrow);
-  const start=localDateTime(today,'00:00').toISOString(); const finish=localDateTime(tomorrowKey,'00:00').toISOString();
+  const today=localDateKey();const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);const tomorrowKey=localDateKey(tomorrow);const start=localDateTime(today,'00:00').toISOString();const finish=localDateTime(tomorrowKey,'00:00').toISOString();
   const [{data:p,error:profileError},{data:log,error:logError},{data:calendar,error:calendarError}]=await Promise.all([
    supabase.from('profiles').select('*').eq('id',user.id).maybeSingle(),
    supabase.from('water_logs').select('*').eq('user_id',user.id).eq('date',today).maybeSingle(),
-   supabase.from('calendar_events').select('type,title,starts_at,ends_at').eq('user_id',user.id).gte('starts_at',start).lt('starts_at',finish).order('starts_at')
+   supabase.from('calendar_events').select('type,title,starts_at,ends_at,notes').eq('user_id',user.id).gte('starts_at',start).lt('starts_at',finish).order('starts_at')
   ]);
   if(profileError||logError||calendarError){setMessage(profileError?.message||logError?.message||calendarError?.message||'Could not load hydration data.');}
-  const ev=calendar||[];const load=dayLoad(ev);const g=calcGoal(p,load);
-  setProfile(p||{});setEvents(ev);setLoadLabel(load.label);setGoal(g);setAmount(Number(log?.amount_ml)||0);
-  setReason(buildReason(p,load,g));
-  if(log?.goal_ml!==g && user){await supabase.from('water_logs').upsert({user_id:user.id,date:today,amount_ml:Number(log?.amount_ml)||0,day_type:load.label,goal_ml:g},{onConflict:'user_id,date'});}
+  const ev=calendar||[];const load=dayLoad(ev);const g=calcGoal(p,load);setProfile(p||{});setEvents(ev);setLoadLabel(load.label);setGoal(g);setAmount(Number(log?.amount_ml)||0);setReason(buildReason(p,load,g));
+  if(log?.goal_ml!==g){const {error}=await supabase.from('water_logs').upsert({user_id:user.id,date:today,amount_ml:Number(log?.amount_ml)||0,day_type:load.label,goal_ml:g},{onConflict:'user_id,date'});if(error)setMessage(error.message);}
  }
- function calcGoal(p,load){
-  const weight=Number(p?.weight_kg)||60; const height=Number(p?.height_cm)||170; const age=Number(p?.age)||16;
-  const base=weight*30 + Math.max(0,height-165)*2 + Math.max(0,18-age)*10;
-  const calendarExtra=Math.min(1600,load.total);
-  return Math.max(1800,Math.round((base+calendarExtra)/50)*50);
- }
- function buildReason(p,load,g){
-  const identity=[p?.age?`${p.age} years`:null,p?.height_cm?`${p.height_cm} cm`:null,p?.weight_kg?`${p.weight_kg} kg`:null,p?.position,p?.division||p?.league_level].filter(Boolean).join(' · ');
-  const eventText=load.match?`Today's calendar contains ${load.match} match${load.match>1?'es':''}, so the planning target is higher.`:load.training?`Today's calendar contains ${load.training} football/gym session${load.training>1?'s':''}, so the planning target is higher.`:'Your calendar currently has no match or training load, so the target starts from your player profile.';
-  return `${identity?`Built from ${identity}. `:''}${eventText} The ${g.toLocaleString()} ml figure is a planning target, not a medical prescription; drink regularly and respond to thirst, heat and your actual conditions.`;
- }
- async function save(nextAmount,nextGoal=goal){setSaving(true);setMessage('');const {data:{user}}=await supabase.auth.getUser();if(user){const {error}=await supabase.from('water_logs').upsert({user_id:user.id,date:localDateKey(),amount_ml:Math.max(0,nextAmount),day_type:loadLabel,goal_ml:nextGoal},{onConflict:'user_id,date'});if(error)setMessage(error.message);}setSaving(false)}
+ function calcGoal(p,load){const weight=Number(p?.weight_kg)||60;const height=Number(p?.height_cm)||170;const age=Number(p?.age)||16;const position=p?.position||'';const positionExtra=/goalkeeper|målvakt/i.test(position)?50:0;const base=weight*30+Math.max(0,height-165)*2+Math.max(0,18-age)*10;const calendarExtra=Math.min(1800,load.total);return Math.max(1800,Math.round((base+calendarExtra+positionExtra)/50)*50)}
+ function buildReason(p,load,g){const identity=[p?.age?`${p.age} years`:null,p?.height_cm?`${p.height_cm} cm`:null,p?.weight_kg?`${p.weight_kg} kg`:null,p?.position,p?.division||p?.league,p?.competition_level].filter(Boolean).join(' · ');const eventText=load.match?`Your calendar has ${load.match} match${load.match>1?'es':''} today, so today's planning target is higher.`:load.training?`Your calendar has ${load.training} football/gym session${load.training>1?'s':''} today, so today's planning target is higher.`:'Your calendar has no detected match or training load today, so the target starts from your player profile.';return `${identity?`Built around ${identity}. `:''}${eventText} The ${g.toLocaleString()} ml figure is a general planning estimate, not a medical prescription.`}
+ async function save(nextAmount,nextGoal=goal){setSaving(true);setMessage('');const {data:{user}}=await supabase.auth.getUser();if(user){const {error}=await supabase.from('water_logs').upsert({user_id:user.id,date:localDateKey(),amount_ml:Math.max(0,nextAmount),day_type:loadLabel,goal_ml:nextGoal},{onConflict:'user_id,date'});if(error)setMessage(error.message)}setSaving(false)}
  function add(ml){const n=Math.max(0,amount+ml);setAmount(n);save(n)}
  if(!profile)return <main className="app-shell"><div className="card"><span className="pill">Hydration</span><h2 style={{marginTop:10}}>Your water goal is loading.</h2><p className="muted">{message||'Connecting your player profile…'}</p></div></main>;
  const pct=Math.min(100,Math.round(amount/Math.max(goal,1)*100));
