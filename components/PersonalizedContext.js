@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '../app/lib/supabaseClient';
-import { localDateKey } from '../app/lib/dateUtils';
+import { supabase } from '../lib/supabaseClient';
+import { localDateKey } from '../lib/dateUtils';
 
 export default function PersonalizedContext(){
  const pathname=usePathname(); const router=useRouter();
@@ -13,9 +13,10 @@ export default function PersonalizedContext(){
   (async()=>{
    const {data:{user}}=await supabase.auth.getUser();
    if(!user || !alive) return;
+   const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1);
    const [{data:p},{data:e}]=await Promise.all([
     supabase.from('profiles').select('name,age,height_cm,weight_kg,position,division,team,upper_body_photo_url,league_level,language').eq('id',user.id).maybeSingle(),
-    supabase.from('calendar_events').select('type,title,starts_at,ends_at').eq('user_id',user.id).gte('starts_at',`${localDateKey()}T00:00:00`).lt('starts_at',`${localDateKey(1)}T00:00:00`).order('starts_at').limit(12)
+    supabase.from('calendar_events').select('type,title,starts_at,ends_at').eq('user_id',user.id).gte('starts_at',`${localDateKey()}T00:00:00`).lt('starts_at',`${localDateKey(tomorrow)}T00:00:00`).order('starts_at').limit(12)
    ]);
    if(alive){setProfile(p||null);setEvents(e||[])}
   })();
