@@ -1,0 +1,1 @@
+Pitchpath QA pass: calendar-aware hydration, nutrition photo picker, recurring AI scheduling, persistent individual training, theory persistence, and theory coach were audited and hardened.
