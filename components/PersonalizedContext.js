@@ -14,11 +14,11 @@ export default function PersonalizedContext(){
    const {data:{user}}=await supabase.auth.getUser();
    if(!user || !alive) return;
    const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-   const [{data:p},{data:e}]=await Promise.all([
-    supabase.from('profiles').select('name,age,height_cm,weight_kg,position,division,team,upper_body_photo_url,league_level,language').eq('id',user.id).maybeSingle(),
+   const [{data:p,error:pe},{data:e,error:ee}]=await Promise.all([
+    supabase.from('profiles').select('name,age,height_cm,weight_kg,position,division,team,photo_url,competition_level,league,language').eq('id',user.id).maybeSingle(),
     supabase.from('calendar_events').select('type,title,starts_at,ends_at').eq('user_id',user.id).gte('starts_at',`${localDateKey()}T00:00:00`).lt('starts_at',`${localDateKey(tomorrow)}T00:00:00`).order('starts_at').limit(12)
    ]);
-   if(alive){setProfile(p||null);setEvents(e||[])}
+   if(alive){setProfile(pe?null:(p||null));setEvents(ee?[]:(e||[]))}
   })();
   return()=>{alive=false}
  },[pathname]);
@@ -30,13 +30,13 @@ export default function PersonalizedContext(){
  },[events]);
  if(!profile) return null;
  const lang=profile.language==='sv';
- const identity=[profile.age?`${profile.age} ${lang?'år':'yo'}`:null,profile.height_cm?`${profile.height_cm} cm`:null,profile.weight_kg?`${profile.weight_kg} kg`:null,profile.position,profile.division||profile.league_level].filter(Boolean);
+ const identity=[profile.age?`${profile.age} ${lang?'år':'yo'}`:null,profile.height_cm?`${profile.height_cm} cm`:null,profile.weight_kg?`${profile.weight_kg} kg`:null,profile.position,profile.division||profile.competition_level||profile.league].filter(Boolean);
  return <div className="personalized-context">
    <div className="personalized-context-main">
     <div className="personalized-context-copy">
       <span className="pill">{lang?'PERSONLIGT FÖR DIG':'BUILT AROUND YOU'}</span>
       <strong>{lang?'Din plan använder din spelarprofil.':'Your plan uses your player profile.'}</strong>
-      <span className="muted">{identity.join(' · ')}{profile.upper_body_photo_url?' · '+(lang?'referensbild sparad':'upper-body reference on file'):''}</span>
+      <span className="muted">{identity.join(' · ')}{profile.photo_url?' · '+(lang?'referensbild sparad':'upper-body reference on file'):''}</span>
     </div>
     <button className="personalized-context-toggle" onClick={()=>setOpen(v=>!v)}>{open?(lang?'Stäng':'Close'):(lang?'Varför?':'Why?')}</button>
    </div>
