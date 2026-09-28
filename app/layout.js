@@ -1,4 +1,5 @@
 import './globals.css';
+import '../components/personalized.css';
 import Nav from '../components/Nav';
 import ThemeBoot from '../components/ThemeBoot';
 import LanguageBridge from '../components/LanguageBridge';
